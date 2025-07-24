@@ -1,0 +1,287 @@
+.calendarWrapper {
+    padding: 1rem;
+    background: #12121f;
+    color: #fff;
+    border-radius: 8px;
+    overflow-x: auto;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+
+    button {
+        background: #333;
+        color: #fff;
+        border: none;
+        padding: 0.4rem 0.6rem;
+        border-radius: 4px;
+        cursor: pointer;
+
+        &:hover {
+            background: #555;
+        }
+    }
+
+    h2 {
+        flex: 1;
+        font-size: 1.2rem;
+        margin: 0;
+    }
+
+    select {
+        background: #222;
+        color: #fff;
+        border: 1px solid #444;
+        padding: 0.3rem 0.5rem;
+        border-radius: 4px;
+    }
+}
+
+.filters {
+    margin-bottom: 0.25rem;
+
+    label {
+        margin-right: 1rem;
+        user-select: none;
+
+        input {
+            margin-right: 0.25rem;
+        }
+    }
+}
+
+.selectionInfo {
+    margin-bottom: 0.5rem;
+    color: #a0e0ff;
+    font-weight: 500;
+}
+
+/* Day-of-week header */
+.dayLabels {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: #1b1b2d;
+    border-radius: 6px 6px 0 0;
+    overflow: hidden;
+    margin-bottom: 0;
+
+    div {
+        padding: 0.6rem 0;
+        text-align: center;
+        font-weight: 600;
+        color: #eef2ff;
+        border-right: 1px solid #2c2c3e;
+        font-size: 0.9rem;
+    }
+
+    div:last-child {
+        border-right: none;
+    }
+
+    @media (max-width: 480px) {
+        display: none;
+    }
+}
+
+/* Empty cell for Daily view */
+.emptyCell {
+    background: #1e1e2f;
+    border: 1px solid #333;
+    min-height: 90px;
+    border-radius: 0;
+}
+
+/* Mobile fallback */
+@media (max-width: 480px) {
+    .header::after {
+        content: "Sun Mon Tue Wed Thu Fri Sat";
+        display: block;
+        text-align: center;
+        font-size: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+}
+
+.grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    transition: opacity 0.3s ease;
+}
+
+.weekRow {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.4rem;
+}
+
+.transition-Monthly {
+    opacity: 1;
+}
+
+.transition-Weekly {
+    opacity: 1;
+}
+
+.transition-Daily {
+    opacity: 0;
+    animation: fadeIn 0.4s forwards;
+}
+
+@keyframes fadeIn {
+    to {
+        opacity: 1;
+    }
+}
+
+.weekContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.weekSummaryRow {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    font-size: 0.75rem;
+    color: #aaa;
+    padding: 0 0.5rem;
+
+    span {
+        text-align: center;
+    }
+}
+
+.cell {
+    background: #1e1e2f;
+    border: 1px solid #333;
+    border-radius: 0;
+    padding: 0.5rem;
+    position: relative;
+    min-height: 90px;
+    cursor: pointer;
+    outline: none;
+    transition: background 0.15s, border-color 0.15s;
+
+    &:hover,
+    &:focus {
+        background: #2a2a3c;
+        border-color: #555;
+    }
+}
+
+.outside {
+    opacity: 0.4;
+}
+
+.today {
+    box-shadow: inset 0 0 0 2px #00e0ff;
+}
+
+.inRange {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.rangeStart,
+.rangeEnd {
+    background: rgba(0, 191, 255, 0.3) !important;
+    box-shadow: 0 0 0 2px #00bfff;
+}
+
+.dateLabel {
+    font-size: 0.85rem;
+    margin-bottom: 0.3rem;
+    display: block;
+}
+
+.tooltip {
+    position: absolute;
+    top: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #222;
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    pointer-events: none;
+    z-index: 10;
+
+    >div {
+        margin: 2px 0;
+    }
+}
+
+.metricsColumn {
+    position: absolute;
+    top: 1.8rem;
+    left: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.volatilityDot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.volumeBar {
+    height: 6px;
+    background: #4fc3f7;
+    border-radius: 3px;
+    transition: width 0.2s ease;
+}
+
+.performanceIcon {
+    font-size: 0.9rem;
+}
+
+.dashboardOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+}
+
+.dashboardDrawer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 360px;
+    height: 100%;
+    background: #1e1e2f;
+    padding: 1rem;
+    overflow-y: auto;
+    box-shadow: -4px 0 8px rgba(0, 0, 0, 0.3);
+}
+
+.closeBtn {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 1.5rem;
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    cursor: pointer;
+}
+
+.zoomInBtn {
+    margin-left: 1rem;
+    background: #00bfff;
+    color: #000;
+    border: none;
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
