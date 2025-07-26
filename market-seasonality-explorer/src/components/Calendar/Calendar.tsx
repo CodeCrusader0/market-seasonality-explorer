@@ -8,13 +8,21 @@ import React, {
 import moment from "moment";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import styles from "./Calendar.module.scss";
 import { saveAs } from "file-saver";
 
-const VIEWS = ["Daily", "Weekly", "Monthly"] as const;
-type ViewType = (typeof VIEWS)[number];
+import CalendarHeader from "./CalendarHeader";
+import CalendarFilters from "./CalendarFilters";
+import DayLabels from "./DayLabels";
+import CalendarGrid from "./CalendarGrid";
+import IntradayDetail from "./IntradayDetail";
 
-interface MarketData {
+import styles from "./Calendar.module.scss";
+
+export const VIEWS = ["Daily", "Weekly", "Monthly"] as const;
+export type ViewType = (typeof VIEWS)[number];
+
+export interface MarketData {
+  symbol: string;
   date: string;
   open: number;
   high: number;
@@ -23,35 +31,11 @@ interface MarketData {
   volume: number;
 }
 
-interface WeekSummary {
+export interface WeekSummary {
   weekStart: string;
   avgVolatility: number;
   totalVolume: number;
   avgClose: number;
-}
-
-function getWeekSummary(
-  days: moment.Moment[],
-  cd: Record<string, MarketData>,
-  vm: Record<string, number>
-): WeekSummary {
-  const valid = days.filter((d) => cd[d.format("YYYY-MM-DD")]);
-  const avgVol =
-    valid.reduce((sum, d) => sum + (vm[d.format("YYYY-MM-DD")] || 0), 0) /
-    valid.length;
-  const totVol = valid.reduce(
-    (sum, d) => sum + cd[d.format("YYYY-MM-DD")].volume,
-    0
-  );
-  const avgClose =
-    valid.reduce((sum, d) => sum + cd[d.format("YYYY-MM-DD")].close, 0) /
-    valid.length;
-  return {
-    weekStart: days[0].format("MMM D"),
-    avgVolatility: avgVol,
-    totalVolume: totVol,
-    avgClose,
-  };
 }
 
 export default function Calendar({
@@ -67,6 +51,14 @@ export default function Calendar({
   const [rangeEnd, setRangeEnd] = useState<moment.Moment | null>(null);
   const [hoverDate, setHoverDate] = useState<moment.Moment | null>(null);
   const [focusDate, setFocusDate] = useState<moment.Moment | null>(null);
+
+  // NEW: intraday toggle & hover state
+  const [showIntraday, setShowIntraday] = useState(false);
+  const [intradayHover, setIntradayHover] = useState<{
+    date: string;
+    rect: DOMRect;
+  } | null>(null);
+
   const [showVolatility, setShowVolatility] = useState(true);
   const [showVolume, setShowVolume] = useState(true);
   const [showPerformance, setShowPerformance] = useState(true);
@@ -84,7 +76,7 @@ export default function Calendar({
   const today = moment().format("YYYY-MM-DD");
   const calendarRef = useRef<HTMLDivElement>(null);
 
-  // Fetch data + rolling stats
+  // fetch daily OHLCV
   useEffect(() => {
     (async () => {
       const start = currentMonth.clone().startOf("month").startOf("week");
@@ -99,6 +91,7 @@ export default function Calendar({
           },
         });
         const arr: MarketData[] = res.data.map((d: any) => ({
+          symbol,
           date: new Date(d[0]).toISOString().split("T")[0],
           open: +d[1],
           high: +d[2],
@@ -109,9 +102,9 @@ export default function Calendar({
         const map: Record<string, MarketData> = {};
         arr.forEach((m) => (map[m.date] = m));
         setCalendarData(map);
-
         setMaxVolume(Math.max(...arr.map((m) => m.volume), 0));
 
+        // compute volatility & MA
         const windowSize = 5;
         const vol: Record<string, number> = {};
         const ma: Record<string, number> = {};
@@ -120,11 +113,10 @@ export default function Calendar({
           const rets = slice.map((d) => (d.close - d.open) / d.open);
           const mean = rets.reduce((a, b) => a + b, 0) / rets.length;
           vol[slice[windowSize - 1].date] = Math.sqrt(
-            rets.map((r) => (r - mean) ** 2).reduce((a, b) => a + b, 0) /
-              rets.length
+            rets.reduce((s, r) => s + (r - mean) ** 2, 0) / rets.length
           );
           ma[slice[windowSize - 1].date] =
-            slice.reduce((sum, d) => sum + d.close, 0) / windowSize;
+            slice.reduce((s, d) => s + d.close, 0) / windowSize;
         }
         setVolatilityMap(vol);
         setMaMap(ma);
@@ -180,155 +172,6 @@ export default function Calendar({
     }
   };
 
-  const renderCell = (date: moment.Moment) => {
-    const ds = date.format("YYYY-MM-DD");
-    const md = calendarData[ds];
-    const volStd = volatilityMap[ds] ?? 0;
-    const perf = md
-      ? md.close > md.open
-        ? "up"
-        : md.close < md.open
-        ? "down"
-        : "neutral"
-      : "neutral";
-
-    const thisMonth = date.month() === currentMonth.month();
-    const heatColor = md
-      ? volStd < 0.01
-        ? "rgba(72,187,120,0.15)"
-        : volStd < 0.02
-        ? "rgba(243,156,18,0.15)"
-        : "rgba(192,57,43,0.15)"
-      : "transparent";
-
-    const barW = md && maxVolume > 0 ? (md.volume / maxVolume) * 80 : 0;
-    const ariaLabel = `${date.format("MMMM D, YYYY")}, Close ${
-      md?.close.toFixed(2) ?? "N/A"
-    }, Volatility ${volStd.toFixed(4)}`;
-
-    const onTouchStart = (_: TouchEvent) => setHoverDate(date);
-    const onTouchEnd = (_: TouchEvent) => setHoverDate(null);
-
-    return (
-      <div
-        key={ds}
-        role="button"
-        tabIndex={0}
-        aria-label={ariaLabel}
-        className={`${styles.cell} ${!thisMonth ? styles.outside : ""}`}
-        style={{ backgroundColor: heatColor }}
-        onClick={() => handleSelectDate(date)}
-        onKeyDown={(e) => onCellKeyDown(e, date)}
-        onMouseEnter={() => setHoverDate(date)}
-        onMouseLeave={() => setHoverDate(null)}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-        onFocus={() => setFocusDate(date)}
-      >
-        <span className={styles.dateLabel}>{date.date()}</span>
-
-        {hoverDate?.isSame(date, "day") && (
-          <div className={styles.tooltip}>
-            <div>
-              <strong>{date.format("MMM D, YYYY")}</strong>
-            </div>
-            <div>Open: {md?.open.toFixed(2) ?? "-"}</div>
-            <div>Close: {md?.close.toFixed(2) ?? "-"}</div>
-            {showVolume && (
-              <div>Volume: {md ? md.volume.toLocaleString() : "-"}</div>
-            )}
-            {showVolatility && (
-              <>
-                <div>Volatility: {volStd.toFixed(4)}</div>
-                <div>MA: {maMap[ds]?.toFixed(2) ?? "-"}</div>
-              </>
-            )}
-            {showPerformance && <div>Performance: {perf}</div>}
-          </div>
-        )}
-
-        {thisMonth && (
-          <div className={styles.metricsColumn}>
-            {showVolatility && (
-              <div
-                className={styles.volatilityDot}
-                style={{ backgroundColor: getVolColor(volStd) }}
-              />
-            )}
-            {showVolume && (
-              <div
-                className={styles.volumeBar}
-                style={{ width: `${barW}px` }}
-              />
-            )}
-            {showPerformance && (
-              <div className={styles.performanceIcon}>
-                {perf === "up" ? "▲" : perf === "down" ? "▼" : "▬"}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderGrid = () => {
-    if (view === "Daily") {
-      const weekdayIndex = currentMonth.day();
-      return (
-        <div className={styles.weekRow}>
-          {Array(7)
-            .fill(null)
-            .map((_, idx) =>
-              idx === weekdayIndex ? (
-                renderCell(currentMonth)
-              ) : (
-                <div key={idx} className={styles.emptyCell} />
-              )
-            )}
-        </div>
-      );
-    }
-
-    if (view === "Weekly") {
-      const wk = currentMonth.clone().startOf("week");
-      return (
-        <div className={styles.weekRow}>
-          {Array(7)
-            .fill(null)
-            .map((_, i) => renderCell(wk.clone().add(i, "day")))}
-        </div>
-      );
-    }
-
-    // Monthly
-    const start = currentMonth.clone().startOf("month").startOf("week");
-    const end = currentMonth.clone().endOf("month").endOf("week");
-    let day = start.clone().subtract(1, "day");
-    const weeks: moment.Moment[][] = [];
-    while (day.isBefore(end, "day")) {
-      weeks.push(
-        Array(7)
-          .fill(null)
-          .map(() => day.add(1, "day").clone())
-      );
-    }
-    return weeks.map((week, idx) => {
-      const summary = getWeekSummary(week, calendarData, volatilityMap);
-      return (
-        <div key={idx} className={styles.weekContainer}>
-          <div className={styles.weekSummaryRow}>
-            <span>Week of {summary.weekStart}</span>
-            <span>Avg Vol: {summary.avgVolatility.toFixed(4)}</span>
-            <span>Tot Vol: {summary.totalVolume.toLocaleString()}</span>
-            <span>Avg Close: {summary.avgClose.toFixed(2)}</span>
-          </div>
-          <div className={styles.weekRow}>{week.map(renderCell)}</div>
-        </div>
-      );
-    });
-  };
-
   const exportToCSV = () => {
     if (!rangeStart || !rangeEnd) return;
     let csv = "Date,Open,High,Low,Close,Volume,Volatility,MA\n";
@@ -337,25 +180,22 @@ export default function Calendar({
       const ds = d.format("YYYY-MM-DD");
       const md = calendarData[ds];
       const vol = volatilityMap[ds] ?? 0;
-      const ma = maMap[ds] ?? 0;
+      const mavg = maMap[ds] ?? 0;
       if (md) {
         csv += `${ds},${md.open},${md.high},${md.low},${md.close},${
           md.volume
-        },${vol.toFixed(4)},${ma.toFixed(2)}\n`;
+        },${vol.toFixed(4)},${mavg.toFixed(2)}\n`;
       }
       d.add(1, "day");
     }
-    saveAs(
-      new Blob([csv], { type: "text/csv;charset=utf-8" }),
-      "market_data.csv"
-    );
+    saveAs(new Blob([csv], { type: "text/csv" }), "market_data.csv");
   };
 
   const exportToPNG = () => {
     if (!calendarRef.current) return;
     import("html-to-image")
-      .then((htmlToImage) =>
-        htmlToImage.toPng(calendarRef.current!).then((url) => {
+      .then((h) =>
+        h.toPng(calendarRef.current!).then((url: string) => {
           const a = document.createElement("a");
           a.download = "calendar.png";
           a.href = url;
@@ -367,117 +207,100 @@ export default function Calendar({
 
   return (
     <div className={styles.calendarWrapper}>
-      {/* Header */}
-      <div className={styles.header}>
-        <button
-          onClick={() =>
-            setCurrentMonth((p) =>
-              p
-                .clone()
-                .subtract(
-                  1,
-                  view === "Monthly"
-                    ? "month"
-                    : view === "Weekly"
-                    ? "week"
-                    : "day"
-                )
-            )
-          }
-        >
-          ◀
-        </button>
-        <h2>
-          {view === "Monthly"
-            ? currentMonth.format("MMMM YYYY")
-            : view === "Weekly"
-            ? `Week of ${currentMonth.format("MMM D, YYYY")}`
-            : currentMonth.format("dddd, MMM D")}
-        </h2>
-        <button
-          onClick={() =>
-            setCurrentMonth((p) =>
-              p
-                .clone()
-                .add(
-                  1,
-                  view === "Monthly"
-                    ? "month"
-                    : view === "Weekly"
-                    ? "week"
-                    : "day"
-                )
-            )
-          }
-        >
-          ▶
-        </button>
-        <select
-          onChange={(e) => setView(e.target.value as ViewType)}
-          value={view}
-        >
-          {VIEWS.map((v) => (
-            <option key={v} value={v}>
-              {v}
-            </option>
-          ))}
-        </select>
-        <select onChange={(e) => setSymbol(e.target.value)} value={symbol}>
-          <option value="BTCUSDT">BTC</option>
-          <option value="ETHUSDT">ETH</option>
-          <option value="BNBUSDT">BNB</option>
-        </select>
-      </div>
+      <CalendarHeader
+        view={view}
+        currentMonth={currentMonth}
+        symbol={symbol}
+        onPrev={() =>
+          setCurrentMonth((p) =>
+            p
+              .clone()
+              .subtract(
+                1,
+                view === "Monthly"
+                  ? "month"
+                  : view === "Weekly"
+                  ? "week"
+                  : "day"
+              )
+          )
+        }
+        onNext={() =>
+          setCurrentMonth((p) =>
+            p
+              .clone()
+              .add(
+                1,
+                view === "Monthly"
+                  ? "month"
+                  : view === "Weekly"
+                  ? "week"
+                  : "day"
+              )
+          )
+        }
+        onViewChange={setView}
+        onSymbolChange={setSymbol}
+      />
 
-      {/* Filters & Selection */}
-      <div className={styles.filters}>
-        <label>
-          <input
-            type="checkbox"
-            checked={showVolatility}
-            onChange={() => setShowVolatility((v) => !v)}
-          />{" "}
-          Volatility
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={showVolume}
-            onChange={() => setShowVolume((v) => !v)}
-          />{" "}
-          Volume
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={showPerformance}
-            onChange={() => setShowPerformance((v) => !v)}
-          />{" "}
-          Performance
-        </label>
-      </div>
+      <CalendarFilters
+        showVolatility={showVolatility}
+        showVolume={showVolume}
+        showPerformance={showPerformance}
+        showIntraday={showIntraday} // ← new
+        toggleVolatility={() => setShowVolatility((v) => !v)}
+        toggleVolume={() => setShowVolume((v) => !v)}
+        togglePerformance={() => setShowPerformance((v) => !v)}
+        toggleIntraday={() => setShowIntraday((v) => !v)} // ← new
+      />
+
       {rangeStart && rangeEnd && (
         <div className={styles.selectionInfo}>
           Selected: {rangeStart.format("MMM D")} – {rangeEnd.format("MMM D")}
         </div>
       )}
 
-      {/* Day Labels */}
-      <div className={styles.dayLabels}>
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-          <div key={d}>{d}</div>
-        ))}
-      </div>
+      <DayLabels />
 
-      {/* Grid */}
       <div
         ref={calendarRef}
         className={`${styles.grid} ${styles[`transition-${view}`]}`}
       >
-        {renderGrid()}
+        <CalendarGrid
+          view={view}
+          currentMonth={currentMonth}
+          calendarData={calendarData}
+          symbol={symbol}
+          volatilityMap={volatilityMap}
+          maMap={maMap}
+          maxVolume={maxVolume}
+          today={today}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+          hoverDate={hoverDate}
+          focusDate={focusDate}
+          inRange={inRange}
+          getVolColor={getVolColor}
+          onSelectDate={handleSelectDate}
+          onHover={setHoverDate}
+          onCellKeyDown={onCellKeyDown}
+          showVolatility={showVolatility}
+          showVolume={showVolume}
+          showPerformance={showPerformance}
+          showIntraday={showIntraday} // ← pass intraday flag
+          onIntradayHover={(date, rect) => setIntradayHover({ date, rect })}
+          onIntradayLeave={() => setIntradayHover(null)}
+        />
       </div>
 
-      {/* Exports */}
+      {intradayHover && (
+        <IntradayDetail
+          symbol={symbol}
+          date={intradayHover.date}
+          anchorRect={intradayHover.rect}
+        />
+      )}
+
       {rangeStart && rangeEnd && (
         <div style={{ marginTop: "1rem" }}>
           <button
@@ -499,6 +322,7 @@ export default function Calendar({
           </button>
         </div>
       )}
+
       {rangeStart && !rangeEnd && (
         <div style={{ marginTop: "0.5rem" }}>
           <button

@@ -1,9 +1,12 @@
+/* src/components/Calendar/Calendar.module.scss */
+
 .calendarWrapper {
     padding: 1rem;
-    background: #12121f;
-    color: #fff;
+    background: #fff;
+    color: #333;
     border-radius: 8px;
     overflow-x: auto;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .header {
@@ -12,17 +15,20 @@
     gap: 0.75rem;
     flex-wrap: wrap;
     margin-bottom: 1rem;
+    background: #f7f7f7;
+    padding: 0.75rem 1rem;
 
     button {
-        background: #333;
-        color: #fff;
+        background: none;
+        color: #333;
         border: none;
         padding: 0.4rem 0.6rem;
         border-radius: 4px;
         cursor: pointer;
+        font-size: 1.1rem;
 
         &:hover {
-            background: #555;
+            color: #007bff;
         }
     }
 
@@ -30,12 +36,13 @@
         flex: 1;
         font-size: 1.2rem;
         margin: 0;
+        font-weight: 500;
     }
 
     select {
-        background: #222;
-        color: #fff;
-        border: 1px solid #444;
+        background: #fff;
+        color: #333;
+        border: 1px solid #ccc;
         padding: 0.3rem 0.5rem;
         border-radius: 4px;
     }
@@ -56,25 +63,24 @@
 
 .selectionInfo {
     margin-bottom: 0.5rem;
-    color: #a0e0ff;
+    color: #007bff;
     font-weight: 500;
 }
 
-/* Day-of-week header */
 .dayLabels {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    background: #1b1b2d;
+    background: #fafafa;
+    border-bottom: 1px solid #e1e1e1;
     border-radius: 6px 6px 0 0;
-    overflow: hidden;
     margin-bottom: 0;
 
     div {
         padding: 0.6rem 0;
         text-align: center;
         font-weight: 600;
-        color: #eef2ff;
-        border-right: 1px solid #2c2c3e;
+        color: #555;
+        border-right: 1px solid #e1e1e1;
         font-size: 0.9rem;
     }
 
@@ -87,15 +93,12 @@
     }
 }
 
-/* Empty cell for Daily view */
 .emptyCell {
-    background: #1e1e2f;
-    border: 1px solid #333;
+    background: #fafafa;
+    border: 1px solid #e1e1e1;
     min-height: 90px;
-    border-radius: 0;
 }
 
-/* Mobile fallback */
 @media (max-width: 480px) {
     .header::after {
         content: "Sun Mon Tue Wed Thu Fri Sat";
@@ -148,7 +151,7 @@
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     font-size: 0.75rem;
-    color: #aaa;
+    color: #777;
     padding: 0 0.5rem;
 
     span {
@@ -157,9 +160,8 @@
 }
 
 .cell {
-    background: #1e1e2f;
-    border: 1px solid #333;
-    border-radius: 0;
+    background: #fff;
+    border: 1px solid #e1e1e1;
     padding: 0.5rem;
     position: relative;
     min-height: 90px;
@@ -169,8 +171,8 @@
 
     &:hover,
     &:focus {
-        background: #2a2a3c;
-        border-color: #555;
+        background: #f0f8ff;
+        border-color: #b3d7ff;
     }
 }
 
@@ -179,11 +181,20 @@
 }
 
 .today {
-    box-shadow: inset 0 0 0 2px #00e0ff;
+    .dateLabel {
+        background: #007bff;
+        color: #fff;
+        border-radius: 50%;
+        display: inline-block;
+        width: 1.6rem;
+        height: 1.6rem;
+        line-height: 1.6rem;
+        text-align: center;
+    }
 }
 
 .inRange {
-    background: rgba(255, 255, 255, 0.2) !important;
+    background: rgba(0, 191, 255, 0.1) !important;
 }
 
 .rangeStart,
@@ -196,6 +207,7 @@
     font-size: 0.85rem;
     margin-bottom: 0.3rem;
     display: block;
+    font-weight: 500;
 }
 
 .tooltip {
@@ -203,7 +215,7 @@
     top: -24px;
     left: 50%;
     transform: translateX(-50%);
-    background: #222;
+    background: #333;
     color: #fff;
     padding: 4px 8px;
     border-radius: 4px;
@@ -233,6 +245,7 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
+    background: currentColor;
 }
 
 .volumeBar {
@@ -244,6 +257,34 @@
 
 .performanceIcon {
     font-size: 0.9rem;
+}
+
+/* --- Intraday Styles --- */
+
+.intraday {
+    position: absolute;
+    bottom: 2px;
+    left: 2px;
+    right: 2px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.range-bar {
+    /* SVG line inherits currentColor */
+}
+
+.vol-bars {
+    display: flex;
+    align-items: flex-end;
+    height: 16px;
+    gap: 1px;
+}
+
+.vol-bar {
+    flex: 1;
+    background-color: rgba(0, 0, 0, 0.2);
 }
 
 .dashboardOverlay {
@@ -259,16 +300,16 @@
     right: 0;
     width: 360px;
     height: 100%;
-    background: #1e1e2f;
+    background: #fff;
     padding: 1rem;
     overflow-y: auto;
-    box-shadow: -4px 0 8px rgba(0, 0, 0, 0.3);
+    box-shadow: -4px 0 8px rgba(0, 0, 0, 0.1);
 }
 
 .closeBtn {
     background: transparent;
     border: none;
-    color: #fff;
+    color: #333;
     font-size: 1.5rem;
     position: absolute;
     top: 8px;
@@ -278,10 +319,39 @@
 
 .zoomInBtn {
     margin-left: 1rem;
-    background: #00bfff;
-    color: #000;
+    background: #007bff;
+    color: #fff;
     border: none;
     padding: 0.3rem 0.6rem;
     border-radius: 4px;
     cursor: pointer;
+
+    &:hover {
+        background: #005bb5;
+    }
+}
+
+/* Intraday badge — pin it into the top‑right corner */
+.intradayBadge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 1.2rem;
+    height: 1.2rem;
+    line-height: 1.2rem;
+    font-size: 0.75rem;
+    background-color: #007bff;
+    color: #fff;
+    border-radius: 50%;
+    text-align: center;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.intradayBadge {
+    visibility: hidden;
+}
+
+.cell:hover .intradayBadge {
+    visibility: visible;
 }
