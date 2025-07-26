@@ -1,4 +1,3 @@
-// src/api/useIntraday.ts
 import { useQuery } from '@tanstack/react-query';
 import { fetchIntraday } from './marketDataService';
 import type { IntradayTick } from '../data/types';

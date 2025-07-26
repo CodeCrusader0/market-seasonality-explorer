@@ -1,4 +1,3 @@
-// src/components/Calendar/CalendarGrid.tsx
 import React from "react";
 import moment from "moment";
 
@@ -31,11 +30,11 @@ interface CalendarGridProps {
   showVolatility: boolean;
   showVolume: boolean;
   showPerformance: boolean;
-  showIntraday: boolean; // new
-  onIntradayHover: (date: string, rect: DOMRect) => void; // new
-  onIntradayLeave: () => void; // new
+  showIntraday: boolean; 
+  onIntradayHover: (date: string, rect: DOMRect) => void;
+  onIntradayLeave: () => void; 
 
-  symbol: string; // new
+  symbol: string;
 }
 
 export default function CalendarGrid({
@@ -59,13 +58,13 @@ export default function CalendarGrid({
   showVolatility,
   showVolume,
   showPerformance,
-  showIntraday, // destructured
-  onIntradayHover, // destructured
-  onIntradayLeave, // destructured
+  showIntraday,
+  onIntradayHover, 
+  onIntradayLeave, 
 
-  symbol, // destructured
+  symbol, 
 }: CalendarGridProps) {
-  // ── Daily view ───────────────────────────────────────────────────────────────
+
   if (view === "Daily") {
     const weekdayIndex = currentMonth.day();
     return (
@@ -106,7 +105,6 @@ export default function CalendarGrid({
     );
   }
 
-  // ── Weekly view ──────────────────────────────────────────────────────────────
   if (view === "Weekly") {
     const wkStart = currentMonth.clone().startOf("week");
     return (
@@ -146,7 +144,6 @@ export default function CalendarGrid({
     );
   }
 
-  // ── Monthly view ─────────────────────────────────────────────────────────────
   const start = currentMonth.clone().startOf("month").startOf("week");
   const end = currentMonth.clone().endOf("month").endOf("week");
   let day = start.clone().subtract(1, "day");
@@ -162,7 +159,6 @@ export default function CalendarGrid({
   return (
     <>
       {weeks.map((week, idx) => {
-        // compute weekly summary
         const validDays = week.filter(
           (d) => calendarData[d.format("YYYY-MM-DD")]
         );

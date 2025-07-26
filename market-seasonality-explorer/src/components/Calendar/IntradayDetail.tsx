@@ -1,4 +1,3 @@
-// src/components/Calendar/IntradayDetail.tsx
 import React from "react";
 import { useIntraday } from "../../api/useIntraday";
 import {

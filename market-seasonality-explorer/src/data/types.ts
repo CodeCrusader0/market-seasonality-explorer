@@ -1,17 +1,14 @@
-// src/data/types.ts
-
-/** A single intraday tick (e.g. 15‑min K‑line) */
 export interface IntradayTick {
-    time: string;      // ISO timestamp or HH:mm
+    time: string;     
     high: number;
     low: number;
     volume: number;
 }
 
-/** Daily OHLCV plus symbol */
+
 export interface MarketData {
     symbol: string;
-    date: string;      // “YYYY-MM-DD”
+    date: string;  
     open: number;
     high: number;
     low: number;

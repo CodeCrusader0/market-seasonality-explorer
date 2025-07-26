@@ -1,10 +1,7 @@
-// src/api/marketDataService.ts
 import axios from 'axios';
 import type { IntradayTick } from '../data/types';
 
-/**
- * Fetch 15‑minute klines for a single day from Binance.
- */
+
 export async function fetchIntraday(
     symbol: string,
     date: string,

@@ -1,4 +1,3 @@
-// src/components/Calendar/WeeklySummary.tsx
 import React from "react";
 import type { WeekSummary as WeekSummaryType } from "./Calendar";
 import styles from "./Calendar.module.scss";

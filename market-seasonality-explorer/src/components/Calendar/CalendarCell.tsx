@@ -1,4 +1,3 @@
-// src/components/Calendar/CalendarCell.tsx
 import React, { type KeyboardEvent, type TouchEvent } from "react";
 import moment from "moment";
 import { useIntraday } from "../../api/useIntraday";
@@ -9,25 +8,25 @@ import styles from "./Calendar.module.scss";
 interface CalendarCellProps {
   date: moment.Moment;
   data?: MarketData;
-  symbol: string; // your trading symbol
-  volStd: number; // daily volatility
-  ma?: number; // moving average
-  maxVolume: number; // max volume in view
-  today: string; // YYYY-MM-DD
+  symbol: string; 
+  volStd: number; 
+  ma?: number; 
+  maxVolume: number; 
+  today: string; 
   isInCurrentMonth: boolean;
-  inRange: boolean; // selection range
+  inRange: boolean; 
   showVolatility: boolean;
   showVolume: boolean;
   showPerformance: boolean;
-  showIntraday: boolean; // new
+  showIntraday: boolean; 
   hoverDate: moment.Moment | null;
   focusDate: moment.Moment | null;
   getVolColor: (s: number) => string;
   onSelectDate: (d: moment.Moment) => void;
   onHover: (d: moment.Moment | null) => void;
   onCellKeyDown: (e: KeyboardEvent<HTMLDivElement>, d: moment.Moment) => void;
-  onIntradayHover: (date: string, rect: DOMRect) => void; // new
-  onIntradayLeave: () => void; // new
+  onIntradayHover: (date: string, rect: DOMRect) => void; 
+  onIntradayLeave: () => void; 
 }
 
 const MAX_VOLUME_BARS = 10;
@@ -55,7 +54,6 @@ export default function CalendarCell({
   onIntradayHover,
   onIntradayLeave,
 }: CalendarCellProps) {
-  // 1️⃣ Performance indicator
   const perf = md
     ? md.close > md.open
       ? "up"
@@ -64,7 +62,6 @@ export default function CalendarCell({
       : "neutral"
     : "neutral";
 
-  // 2️⃣ Heatmap background
   const heatColor = md
     ? volStd < 0.01
       ? "rgba(72,187,120,0.15)"
@@ -73,7 +70,6 @@ export default function CalendarCell({
       : "rgba(192,57,43,0.15)"
     : "transparent";
 
-  // 3️⃣ Weekly/Monthly volume bar width
   const barW = md && maxVolume > 0 ? (md.volume / maxVolume) * 80 : 0;
 
   const dateStr = date.format("YYYY-MM-DD");
@@ -81,12 +77,10 @@ export default function CalendarCell({
     md?.close.toFixed(2) ?? "N/A"
   }, Volatility ${volStd.toFixed(4)}`;
 
-  // 4️⃣ Intraday hook (destructure its return!)
   useIntraday(symbol, dateStr, {
         enabled: showIntraday,
     });
 
-  // 5️⃣ Hover handlers
   const handleMouseEnter = (e: React.MouseEvent) => {
     onHover(date);
     if (showIntraday) {
@@ -122,13 +116,9 @@ export default function CalendarCell({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Date label */}
-      <span className={styles.dateLabel}>{date.date()}</span>
-
-      {/* Intraday badge */}
+      
+      <span className={styles.dateLabel}>{date.date()}</span>     
       {showIntraday && <span className={styles.intradayBadge}>⚡</span>}
-
-      {/* Tooltip */}
       {hoverDate?.isSame(date, "day") && (
         <div className={styles.tooltip}>
           <div>
@@ -149,7 +139,7 @@ export default function CalendarCell({
         </div>
       )}
 
-      {/* Weekly/Monthly metrics */}
+     
       {isInCurrentMonth && (
         <div className={styles.metricsColumn}>
           {showVolatility && (

@@ -1,5 +1,3 @@
-/* src/components/Calendar/Calendar.module.scss */
-
 .calendarWrapper {
     padding: 1rem;
     background: #fff;
@@ -259,7 +257,7 @@
     font-size: 0.9rem;
 }
 
-/* --- Intraday Styles --- */
+
 
 .intraday {
     position: absolute;
@@ -272,7 +270,7 @@
 }
 
 .range-bar {
-    /* SVG line inherits currentColor */
+    
 }
 
 .vol-bars {
@@ -331,7 +329,7 @@
     }
 }
 
-/* Intraday badge — pin it into the top‑right corner */
+
 .intradayBadge {
     position: absolute;
     top: 4px;
