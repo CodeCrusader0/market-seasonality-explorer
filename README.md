@@ -1,92 +1,112 @@
-Market Seasonality Explorer
+# Market Seasonality Explorer
 
-Overview
+## Overview
+The Market Seasonality Explorer is a React-based web application designed to visualize cryptocurrency market data seasonality using the Binance API. It features an interactive calendar interface for exploring daily, weekly, and monthly market metrics (price, volume, volatility, performance) and a detailed dashboard for analyzing selected date ranges. Advanced features include PDF/CSV/PNG export, custom color themes, data comparison, an alert system, anomaly detection, and animations, all built with accessibility and responsiveness in mind.
 
-The Market Seasonality Explorer is a React-based application designed to visualize historical volatility, liquidity, and performance data for financial instruments across daily, weekly, and monthly timeframes. Developed as part of the GoQuant frontend developer recruitment process, this project showcases React skills, component reusability, and data visualization capabilities using real-time cryptocurrency orderbook data.Project SetupPrerequisitesNode.js (v18.x or later)
-npm or yarn
-A code editor (e.g., VS Code)
+This project fulfills the requirements of the GoQuant frontend developer assignment, implementing all functional requirements and bonus features, with a focus on clean code, modular design, and robust error handling.
 
-Installation 
+## Key Features
+- **Interactive Calendar Component**  
+  - Daily, Weekly, Monthly views with smooth transitions  
+  - Navigation via buttons or swipe gestures  
+  - Highlights today’s date; keyboard navigation (arrows, Enter, Escape)  
+  - Visualizes volatility (heatmap), volume (bars), performance (arrows)  
 
-Clone the repository:
+- **Data Visualization Layers**  
+  - **Volatility Heatmap**: Green (low), Orange (medium), Red (high)  
+  - **Liquidity Indicators**: Striped volume bars scaled to maxVolume  
+  - **Performance Metrics**: ▲ up, ▼ down, ▬ neutral  
 
-git clone https://github.com/your-username/market-seasonality-explorer.git
+- **Multi-Timeframe Support**  
+  - **Daily**: Intraday metrics (volatility, volume, price change)  
+  - **Weekly**: Aggregated summaries (avg. volatility, total volume, avg. close)  
+  - **Monthly**: Monthly trends and highlights  
 
-Navigate to the project directory:
+- **Interactive Features**  
+  - Hover tooltips with detailed metrics  
+  - Click to select date/range for dashboard view  
+  - Date-range selection mode  
+  - Filter toggles for metrics and periods  
+  - Zoom-in/out for detailed analysis  
 
-cd market-seasonality-explorer/market-seasonality-explorer
+- **Data Dashboard Panel**  
+  - Open/High/Low/Close, Volume, MA5/MA10, RSI, volatility, benchmark comparison  
+  - Line & Bar charts for selected ranges  
+  - Side-by-side period comparison  
 
-npm install
+- **Responsive Design**  
+  - Works across devices and orientations  
+  - Touch-friendly interactions on mobile  
 
-Start the development server:
+- **Bonus Features**  
+  - Export as PDF, CSV, PNG  
+  - Multiple color themes (light, dark, high-contrast)  
+  - Alerts for volatility/performance thresholds  
+  - Anomaly detection (volatility > 3%)  
+  - Smooth animations via Framer Motion  
+  - Real-time Binance order book integration  
 
-npm run dev
+## Prerequisites
+- Node.js v16+  
+- npm v7+  
+- Internet connection (Binance API)
 
-Features
-1. Interactive Calendar ComponentCustom calendar with daily, weekly, and monthly views.
-Smooth transitions between timeframes using CSS animations and React state management.
-Navigation between months/years via UI buttons and keyboard (arrow keys, Enter, Escape).
-Today’s date (July 29, 2025, 03:01 PM IST) highlighted with a blue circle.
+## Setup & Run
+1. **Clone repository**  
+   ```bash
+   git clone <repository-url>
+   cd market-seasonality-explorer
+   ```
+2. **Install dependencies**  
+   ```bash
+   npm install
+   ```
+3. **Start development server**  
+   ```bash
+   npm start
+   ```
+   App runs at `http://localhost:5173`.
+4. **Build for production**  
+   ```bash
+   npm run build
+   ```
 
-2. Data Visualization LayersVolatility Heatmap: Cells color-coded based on volatility levels:Low: Green shades
-Medium: Yellow/Orange shades
-High: Red shades,
-Liquidity Indicators: Trading volume shown with volume bars and striped gradients.
-Performance Metrics: Price changes visualized with upward (green) arrows, downward (red) arrows, or neutral (gray) indicators.
+## File Structure
+```
+market-seasonality-explorer/
+├── public/
+│   └── index.html
+├── src/
+│   ├── api/
+│   │   ├── marketDataService.ts
+│   │   └── useIntraday.ts
+│   ├── components/
+│   │   └── Calendar/
+│   │       ├── Calendar.tsx
+│   │       ├── CalendarCell.tsx
+│   │       ├── CalendarFilters.tsx
+│   │       ├── CalendarGrid.tsx
+│   │       ├── Calendar.module.scss
+│   │       └── …other sub-components
+│   ├── data/
+│   │   └── types.ts
+│   ├── App.tsx
+│   └── index.tsx
+├── package.json
+└── tsconfig.json
+```
 
-4. Multi-Timeframe SupportDaily View: Displays intraday volatility ranges, trading volume, and price change percentages.
-Weekly View: Aggregates data into weekly summaries with average volatility, total volume, and performance.
-Monthly View: Provides an overview with monthly volatility trends, liquidity patterns, and performance highlights.
+## Implementation Details
+- **Calendar** and **DashboardPanel** components with smooth Framer Motion animations  
+- **React Query** for data fetching & caching  
+- **Chakra UI** for theming & responsive components  
+- **html-to-image** & **jspdf** for exports  
+- **Custom SCSS** for calendar heatmap styling
 
-5. Interactive FeaturesHover Effects: Tooltips display detailed metrics (e.g., Open, High, Low, Close) on hover.
-Click Interactions: Clicking a date opens a detailed breakdown in the dashboard panel.
-Selection Mode: Enables date range selection for custom analysis.
-Filter Controls: Filters for financial instruments (e.g., BTC/USDT), time periods, and metric types.
-Zoom Functionality: Zoom-in/zoom-out for detailed analysis using a slider or buttons.
+## Assumptions
+- Binance API provides sufficient historical & order book data  
+- Volatility = 5-day std dev of returns; anomaly if > 3%  
+- MA5/MA10 for moving averages; RSI uses 14-day window  
+- BTCUSDT as default benchmark
 
-6. Data Dashboard Panel:  Toggleable panel displays comprehensive metrics when a date/period is selected:Opening, closing, high, low prices
-Volume and liquidity metrics
-Volatility (standard deviation)
-Performance comparisons to a benchmark (e.g., 50-day MA)
-Technical indicators (e.g., RSI, Moving Averages)
-
-7. Responsive DesignSeamless operation across desktop, tablet, and mobile devices.
-Touch-friendly interactions for mobile.
-Optimized layout for portrait and landscape orientations.
-Maintains readability with adjustable font sizes and spacing.
-
-Bonus Features
-
-Export Functionality: Export calendar data as CSV, PNG, or PDF.
-
-Custom Color Schemes: Default, high-contrast, and colorblind-friendly themes.
-
-Data Comparison: Side-by-side comparison of two time periods.
-
-Alert System: Alerts for volatility or performance thresholds (configurable).
-
-Historical Patterns: Highlights recurring patterns or anomalies with dashed borders.
-
-Animation Effects: Smooth transitions for data loading and UI interactions.
-
-Libraries and ToolsReact: Core framework (created with Create React App).
-
-Chakra UI: UI component library for responsive design.
-
-Recharts: Charting library for visualizations.
-
-Axios: HTTP client for Binance API integration.
-
-html2canvas & jsPDF: For export functionality.
-
-Binance API provides sufficient free-tier data for demo purposes (BTC/USDT pair).
-Volatility is calculated as a simple standard deviation of daily price changes.
-Performance benchmarks are based on a 50-day moving average.
-Edge cases (e.g., no data, API errors) are handled with fallback UI states.
-
-
-Data Scenarios and Edge CasesNormal Scenario: Fully populated calendar with BTC/USDT data.
-No Data: Displays a "No data available" message with a retry option.
-API Failure: Shows an error state with a refresh button.
-Large Date Range: Optimizes rendering with virtualization techniques.
 
