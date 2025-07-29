@@ -8,12 +8,18 @@ A code editor (e.g., VS Code)
 
 Installation 
 
-Clone the repository:bash
+Clone the repository:
+
 git clone https://github.com/your-username/market-seasonality-explorer.git
-Navigate to the project directory:bash
+
+Navigate to the project directory:
+
 cd market-seasonality-explorer/market-seasonality-explorer
+
 npm install
-Start the development server:bash
+
+Start the development server:
+
 npm run dev
 
 Features
