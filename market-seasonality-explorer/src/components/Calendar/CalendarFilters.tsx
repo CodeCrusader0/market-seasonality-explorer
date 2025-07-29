@@ -1,14 +1,15 @@
-import React from "react";
+import { HStack, Checkbox, Select } from "@chakra-ui/react";
 
 interface CalendarFiltersProps {
   showVolatility: boolean;
   showVolume: boolean;
   showPerformance: boolean;
-  showIntraday: boolean; // ← new
+  showIntraday: boolean;
   toggleVolatility: () => void;
   toggleVolume: () => void;
   togglePerformance: () => void;
-  toggleIntraday: () => void; // ← new
+  toggleIntraday: () => void;
+  setTimePeriod: (period: string) => void;
 }
 
 export default function CalendarFilters({
@@ -20,37 +21,32 @@ export default function CalendarFilters({
   toggleVolume,
   togglePerformance,
   toggleIntraday,
+  setTimePeriod,
 }: CalendarFiltersProps) {
   return (
-    <div className="filters">
-      <label>
-        <input
-          type="checkbox"
-          checked={showVolatility}
-          onChange={toggleVolatility}
-        />
+    <HStack spacing={4} mb={4} flexWrap="wrap">
+      <Checkbox isChecked={showVolatility} onChange={toggleVolatility}>
         Volatility
-      </label>
-      <label>
-        <input type="checkbox" checked={showVolume} onChange={toggleVolume} />
+      </Checkbox>
+      <Checkbox isChecked={showVolume} onChange={toggleVolume}>
         Volume
-      </label>
-      <label>
-        <input
-          type="checkbox"
-          checked={showPerformance}
-          onChange={togglePerformance}
-        />
+      </Checkbox>
+      <Checkbox isChecked={showPerformance} onChange={togglePerformance}>
         Performance
-      </label>
-      <label>
-        <input
-          type="checkbox"
-          checked={showIntraday}
-          onChange={toggleIntraday}
-        />
+      </Checkbox>
+      <Checkbox isChecked={showIntraday} onChange={toggleIntraday}>
         Intraday
-      </label>
-    </div>
+      </Checkbox>
+      <Select
+        w="150px"
+        onChange={(e) => setTimePeriod(e.target.value)}
+        placeholder="Select Time Period"
+      >
+        <option value="all">All Time</option>
+        <option value="last30">Last 30 Days</option>
+        <option value="last90">Last 90 Days</option>
+        <option value="ytd">Year to Date</option>
+      </Select>
+    </HStack>
   );
 }

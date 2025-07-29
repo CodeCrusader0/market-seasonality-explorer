@@ -16,3 +16,9 @@ export interface MarketData {
     volume: number;
     intraday?: IntradayTick[];
 }
+
+export interface OrderBook {
+    lastUpdateId: number;
+    bids: [string, string][];  
+    asks: [string, string][];
+}

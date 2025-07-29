@@ -1,12 +1,14 @@
 import React from "react";
-import styles from "./Calendar.module.scss";
+import { Flex, Box, Text } from "@chakra-ui/react";
 
 export default function DayLabels() {
   return (
-    <div className={styles.dayLabels}>
+    <Flex mb={2}>
       {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-        <div key={d}>{d}</div>
+        <Box key={d} flex={1} textAlign="center">
+          <Text fontWeight="bold">{d}</Text>
+        </Box>
       ))}
-    </div>
+    </Flex>
   );
 }

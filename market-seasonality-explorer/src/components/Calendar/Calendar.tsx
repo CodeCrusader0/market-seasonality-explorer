@@ -1,35 +1,43 @@
-import React, {
-  useState,
-  useRef,
-  useEffect,
-  type KeyboardEvent,
-  type TouchEvent,
-} from "react";
-import moment from "moment";
+import React, { useState, useRef, useEffect, type KeyboardEvent } from "react";
+import moment, { type Moment } from "moment";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
 import { saveAs } from "file-saver";
+import { useSwipeable } from "react-swipeable";
+import jsPDF from "jspdf";
+import { motion } from "framer-motion";
+import {
+  Box,
+  Flex,
+  Heading,
+  IconButton,
+  Select,
+  Stack,
+  Button,
+  useColorModeValue,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Input,
+  FormControl,
+  FormLabel,
+  useToast,
+} from "@chakra-ui/react";
+import { ChevronLeftIcon, ChevronRightIcon } from "@chakra-ui/icons";
+import { useNavigate } from "react-router-dom";
 
-import CalendarHeader from "./CalendarHeader";
-import CalendarFilters from "./CalendarFilters";
-import DayLabels from "./DayLabels";
+import OrderbookPanel from "../OrderbookPanel";
 import CalendarGrid from "./CalendarGrid";
 import IntradayDetail from "./IntradayDetail";
+import CalendarFilters from "./CalendarFilters";
+import DayLabels from "./DayLabels";
 
-import styles from "./Calendar.module.scss";
+import type { MarketData } from "../../data/types";
 
 export const VIEWS = ["Daily", "Weekly", "Monthly"] as const;
 export type ViewType = (typeof VIEWS)[number];
-
-export interface MarketData {
-  symbol: string;
-  date: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
 
 export interface WeekSummary {
   weekStart: string;
@@ -45,24 +53,22 @@ export default function Calendar({
   symbol: string;
   setSymbol: (s: string) => void;
 }) {
-  const [currentMonth, setCurrentMonth] = useState(moment());
+  // --- STATE ---
+  const [currentMonth, setCurrentMonth] = useState<Moment>(moment());
   const [view, setView] = useState<ViewType>("Monthly");
-  const [rangeStart, setRangeStart] = useState<moment.Moment | null>(null);
-  const [rangeEnd, setRangeEnd] = useState<moment.Moment | null>(null);
-  const [hoverDate, setHoverDate] = useState<moment.Moment | null>(null);
-  const [focusDate, setFocusDate] = useState<moment.Moment | null>(null);
-
-  // NEW: intraday toggle & hover state
+  const [rangeStart, setRangeStart] = useState<Moment | null>(null);
+  const [rangeEnd, setRangeEnd] = useState<Moment | null>(null);
+  const [hoverDate, setHoverDate] = useState<Moment | null>(null);
+  const [focusDate, setFocusDate] = useState<Moment | null>(null);
   const [showIntraday, setShowIntraday] = useState(false);
   const [intradayHover, setIntradayHover] = useState<{
     date: string;
     rect: DOMRect;
   } | null>(null);
-
+  const [timePeriod, setTimePeriod] = useState<string>("all");
   const [showVolatility, setShowVolatility] = useState(true);
   const [showVolume, setShowVolume] = useState(true);
   const [showPerformance, setShowPerformance] = useState(true);
-
   const [calendarData, setCalendarData] = useState<Record<string, MarketData>>(
     {}
   );
@@ -71,26 +77,68 @@ export default function Calendar({
   );
   const [maMap, setMaMap] = useState<Record<string, number>>({});
   const [maxVolume, setMaxVolume] = useState(0);
+  const [alerts, setAlerts] = useState<
+    { volatility?: number; performance?: number; date: string }[]
+  >([]);
+  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
+  const [alertVolatility, setAlertVolatility] = useState("");
+  const [alertPerformance, setAlertPerformance] = useState("");
 
   const navigate = useNavigate();
+  const toast = useToast();
   const today = moment().format("YYYY-MM-DD");
   const calendarRef = useRef<HTMLDivElement>(null);
 
-  // fetch daily OHLCV
+  // --- SWIPE HANDLERS ---
+  const handlers = useSwipeable({
+    onSwipedLeft: () =>
+      setCurrentMonth((m) =>
+        m
+          .clone()
+          .add(
+            1,
+            view === "Monthly" ? "month" : view === "Weekly" ? "week" : "day"
+          )
+      ),
+    onSwipedRight: () =>
+      setCurrentMonth((m) =>
+        m
+          .clone()
+          .subtract(
+            1,
+            view === "Monthly" ? "month" : view === "Weekly" ? "week" : "day"
+          )
+      ),
+    trackMouse: false,
+    delta: 10,
+  });
+
+  // --- DATA FETCH ---
   useEffect(() => {
     (async () => {
-      const start = currentMonth.clone().startOf("month").startOf("week");
-      const end = currentMonth.clone().endOf("month").endOf("week");
+      let start = currentMonth
+        .clone()
+        .startOf("month")
+        .startOf("week")
+        .valueOf();
+      let end = currentMonth.clone().endOf("month").endOf("week").valueOf();
+
+      if (timePeriod === "last30") {
+        start = moment().subtract(30, "days").startOf("day").valueOf();
+        end = moment().endOf("day").valueOf();
+      } else if (timePeriod === "last90") {
+        start = moment().subtract(90, "days").startOf("day").valueOf();
+        end = moment().endOf("day").valueOf();
+      } else if (timePeriod === "ytd") {
+        start = moment().startOf("year").startOf("day").valueOf();
+        end = moment().endOf("day").valueOf();
+      }
+
       try {
         const res = await axios.get("https://api.binance.com/api/v3/klines", {
-          params: {
-            symbol,
-            interval: "1d",
-            startTime: start.valueOf(),
-            endTime: end.valueOf(),
-          },
+          params: { symbol, interval: "1d", startTime: start, endTime: end },
         });
-        const arr: MarketData[] = res.data.map((d: any) => ({
+        const arr: MarketData[] = res.data.map((d: any[]) => ({
           symbol,
           date: new Date(d[0]).toISOString().split("T")[0],
           open: +d[1],
@@ -102,46 +150,70 @@ export default function Calendar({
         const map: Record<string, MarketData> = {};
         arr.forEach((m) => (map[m.date] = m));
         setCalendarData(map);
-        setMaxVolume(Math.max(...arr.map((m) => m.volume), 0));
+        setMaxVolume(Math.max(...arr.map((m) => m.volume)));
 
-        // compute volatility & MA
         const windowSize = 5;
         const vol: Record<string, number> = {};
         const ma: Record<string, number> = {};
         for (let i = windowSize - 1; i < arr.length; i++) {
           const slice = arr.slice(i - windowSize + 1, i + 1);
-          const rets = slice.map((d) => (d.close - d.open) / d.open);
+          const rets = slice.map((x) => (x.close - x.open) / x.open);
           const mean = rets.reduce((a, b) => a + b, 0) / rets.length;
           vol[slice[windowSize - 1].date] = Math.sqrt(
             rets.reduce((s, r) => s + (r - mean) ** 2, 0) / rets.length
           );
           ma[slice[windowSize - 1].date] =
-            slice.reduce((s, d) => s + d.close, 0) / windowSize;
+            slice.reduce((s, x) => s + x.close, 0) / windowSize;
         }
         setVolatilityMap(vol);
         setMaMap(ma);
-      } catch (e) {
-        console.error(e);
+
+        // Check alerts
+        Object.keys(vol).forEach((date) => {
+          const md = map[date];
+          const perf = md ? ((md.close - md.open) / md.open) * 100 : 0;
+          alerts.forEach((alert) => {
+            if (
+              (alert.volatility && vol[date] > alert.volatility) ||
+              (alert.performance && Math.abs(perf) > alert.performance)
+            ) {
+              toast({
+                title: `Alert on ${date}`,
+                description: `Volatility: ${vol[date].toFixed(
+                  4
+                )}, Performance: ${perf.toFixed(2)}%`,
+                status: "warning",
+                duration: 5000,
+                isClosable: true,
+              });
+            }
+          });
+        });
+      } catch (err) {
+        console.error(err);
       }
     })();
-  }, [currentMonth, symbol]);
+  }, [currentMonth, symbol, timePeriod, alerts, toast]);
 
+  // --- HELPERS ---
   const getVolColor = (s: number) =>
     s < 0.01 ? "green" : s < 0.02 ? "orange" : "red";
 
-  const inRange = (d: moment.Moment) =>
+  const inRange = (d: Moment) =>
     !!rangeStart &&
     !!rangeEnd &&
     d.isSameOrAfter(rangeStart, "day") &&
     d.isSameOrBefore(rangeEnd, "day");
 
-  const handleSelectDate = (d: moment.Moment) => {
+  const handleSelectDate = (d: Moment) => {
     if (!rangeStart) setRangeStart(d);
     else if (!rangeEnd) {
       if (d.isBefore(rangeStart)) {
         setRangeEnd(rangeStart);
         setRangeStart(d);
-      } else setRangeEnd(d);
+      } else {
+        setRangeEnd(d);
+      }
     } else {
       setRangeStart(d);
       setRangeEnd(null);
@@ -161,23 +233,26 @@ export default function Calendar({
     setFocusDate(next);
   };
 
-  const onCellKeyDown = (
-    e: KeyboardEvent<HTMLDivElement>,
-    date: moment.Moment
-  ) => {
-    if (e.key === "Enter") handleSelectDate(date);
+  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>, d: Moment) => {
+    if (e.key === "Enter") handleSelectDate(d);
+    if (e.key === "Escape") {
+      setFocusDate(null);
+      setRangeStart(null);
+      setRangeEnd(null);
+    }
     if (e.key.startsWith("Arrow")) {
       e.preventDefault();
       moveFocus(e.key.replace("Arrow", "").toLowerCase() as any);
     }
   };
 
+  // Exports
   const exportToCSV = () => {
     if (!rangeStart || !rangeEnd) return;
     let csv = "Date,Open,High,Low,Close,Volume,Volatility,MA\n";
-    let d = rangeStart.clone();
-    while (d.isSameOrBefore(rangeEnd, "day")) {
-      const ds = d.format("YYYY-MM-DD");
+    let cursor = rangeStart.clone();
+    while (cursor.isSameOrBefore(rangeEnd, "day")) {
+      const ds = cursor.format("YYYY-MM-DD");
       const md = calendarData[ds];
       const vol = volatilityMap[ds] ?? 0;
       const mavg = maMap[ds] ?? 0;
@@ -186,7 +261,7 @@ export default function Calendar({
           md.volume
         },${vol.toFixed(4)},${mavg.toFixed(2)}\n`;
       }
-      d.add(1, "day");
+      cursor.add(1, "day");
     }
     saveAs(new Blob([csv], { type: "text/csv" }), "market_data.csv");
   };
@@ -205,136 +280,275 @@ export default function Calendar({
       .catch(() => alert("Export failed"));
   };
 
+  const exportToPDF = () => {
+    if (!calendarRef.current) return;
+    import("html-to-image").then((h) => {
+      h.toPng(calendarRef.current!).then((dataUrl) => {
+        const pdf = new jsPDF();
+        const imgProps = pdf.getImageProperties(dataUrl);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        pdf.addImage(dataUrl, "PNG", 0, 0, pdfWidth, pdfHeight);
+        pdf.save("calendar.pdf");
+      });
+    });
+  };
+
+  // Alert handling
+  const handleAddAlert = () => {
+    if (!rangeStart) return;
+    const newAlert = {
+      volatility: alertVolatility ? parseFloat(alertVolatility) : undefined,
+      performance: alertPerformance ? parseFloat(alertPerformance) : undefined,
+      date: rangeStart.format("YYYY-MM-DD"),
+    };
+    setAlerts([...alerts, newAlert]);
+    setIsAlertModalOpen(false);
+    setAlertVolatility("");
+    setAlertPerformance("");
+    toast({
+      title: "Alert Added",
+      description: `Alert set for ${rangeStart.format("MMM D, YYYY")}`,
+      status: "success",
+      duration: 3000,
+      isClosable: true,
+    });
+  };
+
+  // Theming
+  const bg = useColorModeValue("white", "gray.700");
+  const borderColor = useColorModeValue("gray.200", "gray.600");
+
+  // Animation variants
+  const gridVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
+  };
+
+  // --- RENDER ---
   return (
-    <div className={styles.calendarWrapper}>
-      <CalendarHeader
-        view={view}
-        currentMonth={currentMonth}
-        symbol={symbol}
-        onPrev={() =>
-          setCurrentMonth((p) =>
-            p
-              .clone()
-              .subtract(
-                1,
-                view === "Monthly"
-                  ? "month"
-                  : view === "Weekly"
-                  ? "week"
-                  : "day"
-              )
-          )
-        }
-        onNext={() =>
-          setCurrentMonth((p) =>
-            p
-              .clone()
-              .add(
-                1,
-                view === "Monthly"
-                  ? "month"
-                  : view === "Weekly"
-                  ? "week"
-                  : "day"
-              )
-          )
-        }
-        onViewChange={setView}
-        onSymbolChange={setSymbol}
-      />
-
-      <CalendarFilters
-        showVolatility={showVolatility}
-        showVolume={showVolume}
-        showPerformance={showPerformance}
-        showIntraday={showIntraday} // ← new
-        toggleVolatility={() => setShowVolatility((v) => !v)}
-        toggleVolume={() => setShowVolume((v) => !v)}
-        togglePerformance={() => setShowPerformance((v) => !v)}
-        toggleIntraday={() => setShowIntraday((v) => !v)} // ← new
-      />
-
-      {rangeStart && rangeEnd && (
-        <div className={styles.selectionInfo}>
-          Selected: {rangeStart.format("MMM D")} – {rangeEnd.format("MMM D")}
-        </div>
-      )}
-
-      <DayLabels />
-
-      <div
-        ref={calendarRef}
-        className={`${styles.grid} ${styles[`transition-${view}`]}`}
+    <Flex p={4} gap={6}>
+      <Box
+        flex={3}
+        bg={bg}
+        borderWidth="1px"
+        borderColor={borderColor}
+        boxShadow="sm"
+        borderRadius="md"
+        p={4}
+        {...handlers}
       >
-        <CalendarGrid
-          view={view}
-          currentMonth={currentMonth}
-          calendarData={calendarData}
-          symbol={symbol}
-          volatilityMap={volatilityMap}
-          maMap={maMap}
-          maxVolume={maxVolume}
-          today={today}
-          rangeStart={rangeStart}
-          rangeEnd={rangeEnd}
-          hoverDate={hoverDate}
-          focusDate={focusDate}
-          inRange={inRange}
-          getVolColor={getVolColor}
-          onSelectDate={handleSelectDate}
-          onHover={setHoverDate}
-          onCellKeyDown={onCellKeyDown}
+        <Flex align="center" mb={4}>
+          <IconButton
+            aria-label="Previous"
+            icon={<ChevronLeftIcon />}
+            onClick={() =>
+              setCurrentMonth((m) =>
+                m
+                  .clone()
+                  .subtract(
+                    1,
+                    view === "Monthly"
+                      ? "month"
+                      : view === "Weekly"
+                      ? "week"
+                      : "day"
+                  )
+              )
+            }
+          />
+          <Heading flex={1} size="md" textAlign="center">
+            {view === "Monthly"
+              ? currentMonth.format("MMMM YYYY")
+              : view === "Weekly"
+              ? `Week of ${currentMonth.format("MMM D, YYYY")}`
+              : currentMonth.format("dddd, MMM D")}
+          </Heading>
+          <IconButton
+            aria-label="Next"
+            icon={<ChevronRightIcon />}
+            onClick={() =>
+              setCurrentMonth((m) =>
+                m
+                  .clone()
+                  .add(
+                    1,
+                    view === "Monthly"
+                      ? "month"
+                      : view === "Weekly"
+                      ? "week"
+                      : "day"
+                  )
+              )
+            }
+          />
+        </Flex>
+
+        <Stack direction="row" spacing={2} mb={4}>
+          <Select
+            w="100px"
+            value={view}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+              setView(e.target.value as ViewType)
+            }
+          >
+            {VIEWS.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </Select>
+
+          <Select
+            w="100px"
+            value={symbol}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+              setSymbol(e.target.value)
+            }
+          >
+            <option value="BTCUSDT">BTC</option>
+            <option value="ETHUSDT">ETH</option>
+            <option value="BNBUSDT">BNB</option>
+          </Select>
+        </Stack>
+
+        <CalendarFilters
           showVolatility={showVolatility}
           showVolume={showVolume}
           showPerformance={showPerformance}
-          showIntraday={showIntraday} // ← pass intraday flag
-          onIntradayHover={(date, rect) => setIntradayHover({ date, rect })}
-          onIntradayLeave={() => setIntradayHover(null)}
+          showIntraday={showIntraday}
+          toggleVolatility={() => setShowVolatility((v) => !v)}
+          toggleVolume={() => setShowVolume((v) => !v)}
+          togglePerformance={() => setShowPerformance((v) => !v)}
+          toggleIntraday={() => setShowIntraday((v) => !v)}
+          setTimePeriod={setTimePeriod}
         />
-      </div>
 
-      {intradayHover && (
-        <IntradayDetail
-          symbol={symbol}
-          date={intradayHover.date}
-          anchorRect={intradayHover.rect}
-        />
-      )}
+        {rangeStart && rangeEnd && (
+          <Box color="blue.500" mb={4}>
+            Selected: {rangeStart.format("MMM D")} – {rangeEnd.format("MMM D")}
+          </Box>
+        )}
 
-      {rangeStart && rangeEnd && (
-        <div style={{ marginTop: "1rem" }}>
-          <button
-            onClick={() =>
-              navigate(
-                `/dashboard/${rangeStart.format(
-                  "YYYY-MM-DD"
-                )}?end=${rangeEnd.format("YYYY-MM-DD")}`
-              )
-            }
-          >
-            Zoom In ({rangeStart.format("MMM D")}–{rangeEnd.format("MMM D")})
-          </button>
-          <button onClick={exportToCSV} style={{ marginLeft: 8 }}>
-            Export CSV
-          </button>
-          <button onClick={exportToPNG} style={{ marginLeft: 8 }}>
-            Export PNG
-          </button>
-        </div>
-      )}
+        <DayLabels />
 
-      {rangeStart && !rangeEnd && (
-        <div style={{ marginTop: "0.5rem" }}>
-          <button
-            onClick={() => {
-              setRangeStart(null);
-              setRangeEnd(null);
-            }}
-          >
-            Clear Range
-          </button>
-        </div>
-      )}
-    </div>
+        <motion.div
+          ref={calendarRef}
+          variants={gridVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          <CalendarGrid
+            view={view}
+            currentMonth={currentMonth}
+            calendarData={calendarData}
+            symbol={symbol}
+            volatilityMap={volatilityMap}
+            maMap={maMap}
+            maxVolume={maxVolume}
+            today={today}
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            hoverDate={hoverDate}
+            focusDate={focusDate}
+            inRange={inRange}
+            getVolColor={getVolColor}
+            onSelectDate={handleSelectDate}
+            onHover={setHoverDate}
+            onCellKeyDown={handleKeyDown}
+            showVolatility={showVolatility}
+            showVolume={showVolume}
+            showPerformance={showPerformance}
+            showIntraday={showIntraday}
+            onIntradayHover={(date, rect) => setIntradayHover({ date, rect })}
+            onIntradayLeave={() => setIntradayHover(null)}
+            alerts={alerts}
+          />
+        </motion.div>
+
+        {intradayHover && (
+          <IntradayDetail
+            symbol={symbol}
+            date={intradayHover.date}
+            anchorRect={intradayHover.rect}
+          />
+        )}
+
+        {rangeStart && rangeEnd && (
+          <Stack direction="row" spacing={2} mt={4}>
+            <Button
+              colorScheme="blue"
+              onClick={() =>
+                navigate(
+                  `/dashboard/${rangeStart.format(
+                    "YYYY-MM-DD"
+                  )}?end=${rangeEnd.format("YYYY-MM-DD")}`
+                )
+              }
+            >
+              Zoom In ({rangeStart.format("MMM D")}–{rangeEnd.format("MMM D")})
+            </Button>
+            <Button
+              colorScheme="blue"
+              variant="outline"
+              onClick={() => setIsAlertModalOpen(true)}
+            >
+              Set Alert
+            </Button>
+          </Stack>
+        )}
+
+        <Stack direction="row" spacing={2} mt={2}>
+          <Button onClick={exportToCSV}>Export CSV</Button>
+          <Button onClick={exportToPNG}>Export PNG</Button>
+          <Button onClick={exportToPDF}>Export PDF</Button>
+        </Stack>
+
+        <Modal
+          isOpen={isAlertModalOpen}
+          onClose={() => setIsAlertModalOpen(false)}
+        >
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader>Set Alert</ModalHeader>
+            <ModalBody>
+              <FormControl mb={4}>
+                <FormLabel>Volatility Threshold (%)</FormLabel>
+                <Input
+                  type="number"
+                  value={alertVolatility}
+                  onChange={(e) => setAlertVolatility(e.target.value)}
+                  placeholder="e.g., 0.02"
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Performance Threshold (%)</FormLabel>
+                <Input
+                  type="number"
+                  value={alertPerformance}
+                  onChange={(e) => setAlertPerformance(e.target.value)}
+                  placeholder="e.g., 5"
+                />
+              </FormControl>
+            </ModalBody>
+            <ModalFooter>
+              <Button
+                variant="ghost"
+                onClick={() => setIsAlertModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button colorScheme="blue" onClick={handleAddAlert}>
+                Save
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+      </Box>
+
+      <Box flex="0 0 300px">
+        <OrderbookPanel symbol={symbol} />
+      </Box>
+    </Flex>
   );
 }

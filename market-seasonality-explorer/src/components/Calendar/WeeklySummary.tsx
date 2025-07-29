@@ -1,18 +1,29 @@
-import React from "react";
+import { SimpleGrid, Text, useColorModeValue } from "@chakra-ui/react";
 import type { WeekSummary as WeekSummaryType } from "./Calendar";
-import styles from "./Calendar.module.scss";
 
 interface WeeklySummaryProps {
   summary: WeekSummaryType;
 }
 
 export default function WeeklySummary({ summary }: WeeklySummaryProps) {
+  const bg = useColorModeValue("gray.50", "gray.600");
+  const color = useColorModeValue("gray.600", "gray.200");
+
   return (
-    <div className={styles.weekSummaryRow}>
-      <span>Week of {summary.weekStart}</span>
-      <span>Avg Vol: {summary.avgVolatility.toFixed(4)}</span>
-      <span>Tot Vol: {summary.totalVolume.toLocaleString()}</span>
-      <span>Avg Close: {summary.avgClose.toFixed(2)}</span>
-    </div>
+    <SimpleGrid
+      columns={4}
+      bg={bg}
+      color={color}
+      fontSize="sm"
+      py={2}
+      px={4}
+      borderBottom="1px solid"
+      borderColor={useColorModeValue("gray.200", "gray.700")}
+    >
+      <Text>Week of {summary.weekStart}</Text>
+      <Text>Avg Vol: {summary.avgVolatility.toFixed(4)}</Text>
+      <Text>Tot Vol: {summary.totalVolume.toLocaleString()}</Text>
+      <Text>Avg Close: {summary.avgClose.toFixed(2)}</Text>
+    </SimpleGrid>
   );
 }

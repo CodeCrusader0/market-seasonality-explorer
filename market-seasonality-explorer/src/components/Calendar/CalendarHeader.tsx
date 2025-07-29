@@ -1,4 +1,3 @@
-import React from "react";
 import moment from "moment";
 import styles from "./Calendar.module.scss";
 import { VIEWS, type ViewType } from "./Calendar";

@@ -1,35 +1,41 @@
-import React, { type KeyboardEvent, type TouchEvent } from "react";
+import React, {
+  type KeyboardEvent,
+  type TouchEvent,
+  useState,
+  useEffect,
+  useRef,
+} from "react";
 import moment from "moment";
 import { useIntraday } from "../../api/useIntraday";
-import type { IntradayTick } from "../../data/types";
-import type { MarketData } from "./Calendar";
+import type { MarketData } from "../../data/types";
+import { motion } from "framer-motion";
 import styles from "./Calendar.module.scss";
 
-interface CalendarCellProps {
+type CalendarCellProps = React.ComponentProps<typeof motion.div> & {
   date: moment.Moment;
   data?: MarketData;
-  symbol: string; 
-  volStd: number; 
-  ma?: number; 
-  maxVolume: number; 
-  today: string; 
+  symbol: string;
+  volStd: number;
+  ma?: number;
+  maxVolume: number;
+  today: string;
   isInCurrentMonth: boolean;
-  inRange: boolean; 
+  inRange: boolean;
   showVolatility: boolean;
   showVolume: boolean;
   showPerformance: boolean;
-  showIntraday: boolean; 
+  showIntraday: boolean;
   hoverDate: moment.Moment | null;
   focusDate: moment.Moment | null;
   getVolColor: (s: number) => string;
   onSelectDate: (d: moment.Moment) => void;
   onHover: (d: moment.Moment | null) => void;
   onCellKeyDown: (e: KeyboardEvent<HTMLDivElement>, d: moment.Moment) => void;
-  onIntradayHover: (date: string, rect: DOMRect) => void; 
-  onIntradayLeave: () => void; 
-}
+  onIntradayHover: (date: string, rect: DOMRect) => void;
+  onIntradayLeave: () => void;
+  alerts: { volatility?: number; performance?: number; date: string }[];
+};
 
-const MAX_VOLUME_BARS = 10;
 
 export default function CalendarCell({
   date,
@@ -53,6 +59,8 @@ export default function CalendarCell({
   onCellKeyDown,
   onIntradayHover,
   onIntradayLeave,
+  alerts,
+  ...motionProps
 }: CalendarCellProps) {
   const perf = md
     ? md.close > md.open
@@ -73,15 +81,44 @@ export default function CalendarCell({
   const barW = md && maxVolume > 0 ? (md.volume / maxVolume) * 80 : 0;
 
   const dateStr = date.format("YYYY-MM-DD");
+  const priceChangePct = md
+    ? (((md.close - md.open) / md.open) * 100).toFixed(2)
+    : "N/A";
+  const maDiff = md && ma ? (((md.close - ma) / ma) * 100).toFixed(2) : "N/A";
   const ariaLabel = `${date.format("MMMM D, YYYY")}, Close ${
     md?.close.toFixed(2) ?? "N/A"
-  }, Volatility ${volStd.toFixed(4)}`;
+  }, Volatility ${volStd.toFixed(4)}, Price Change ${priceChangePct}%`;
 
   useIntraday(symbol, dateStr, {
-        enabled: showIntraday,
-    });
+    enabled: showIntraday,
+  });
 
-  const handleMouseEnter = (e: React.MouseEvent) => {
+  const cellRef = useRef<HTMLDivElement>(null);
+  const [tooltipPosition, setTooltipPosition] = useState<
+    "top" | "bottom" | "left" | "right"
+  >("top");
+
+  useEffect(() => {
+    if (!cellRef.current || !hoverDate?.isSame(date, "day")) return;
+    const rect = cellRef.current.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const spaceAbove = rect.top;
+    const spaceBelow = viewportHeight - rect.bottom;
+    const spaceRight = viewportWidth - rect.right;
+
+    if (spaceAbove > 100 && spaceAbove >= spaceBelow) {
+      setTooltipPosition("top");
+    } else if (spaceBelow > 100) {
+      setTooltipPosition("bottom");
+    } else if (spaceRight > 100) {
+      setTooltipPosition("right");
+    } else {
+      setTooltipPosition("left");
+    }
+  }, [hoverDate, date]);
+
+  const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
     onHover(date);
     if (showIntraday) {
       onIntradayHover(dateStr, e.currentTarget.getBoundingClientRect());
@@ -92,40 +129,72 @@ export default function CalendarCell({
     if (showIntraday) onIntradayLeave();
   };
 
-  const handleTouchStart = (_: TouchEvent) => onHover(date);
-  const handleTouchEnd = (_: TouchEvent) => onHover(null);
+  const handleTouchStart = (_: TouchEvent<HTMLDivElement>) => onHover(date);
+  const handleTouchEnd = (_: TouchEvent<HTMLDivElement>) => onHover(null);
+
+  const hasAlert = alerts.some((alert) => alert.date === dateStr);
+  const isAnomaly = volStd > 0.03;
+
+  const cellVariants = {
+    hidden: { scale: 0.8, opacity: 0 },
+    visible: { scale: 1, opacity: 1, transition: { duration: 0.2 } },
+  };
+
+  const tooltipVariants = {
+    hidden: { opacity: 0, y: -10 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
+  };
 
   return (
-    <div
+    <motion.div
+      ref={cellRef}
       role="button"
       tabIndex={0}
       aria-label={ariaLabel}
+      aria-describedby={
+        hoverDate?.isSame(date, "day") ? `tooltip-${dateStr}` : undefined
+      }
       className={[
         styles.cell,
         !isInCurrentMonth ? styles.outside : "",
         inRange ? styles.inRange : "",
         dateStr === today ? styles.today : "",
+        isAnomaly ? styles.anomaly : "",
       ]
         .filter(Boolean)
         .join(" ")}
       style={{ backgroundColor: heatColor }}
       onClick={() => onSelectDate(date)}
-      onKeyDown={(e) => onCellKeyDown(e, date)}
+      onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => onCellKeyDown(e, date)}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
+      variants={cellVariants}
+      initial="hidden"
+      animate="visible"
+      {...motionProps}
     >
-      
-      <span className={styles.dateLabel}>{date.date()}</span>     
+      <span className={styles.dateLabel}>{date.date()}</span>
       {showIntraday && <span className={styles.intradayBadge}>⚡</span>}
+      {hasAlert && <span className={styles.alertBadge}>!</span>}
+
       {hoverDate?.isSame(date, "day") && (
-        <div className={styles.tooltip}>
+        <motion.div
+          id={`tooltip-${dateStr}`}
+          className={[styles.tooltip, styles[tooltipPosition]].join(" ")}
+          variants={tooltipVariants}
+          initial="hidden"
+          animate="visible"
+        >
           <div>
             <strong>{date.format("MMM D, YYYY")}</strong>
           </div>
           <div>Open: {md?.open.toFixed(2) ?? "-"}</div>
+          <div>High: {md?.high.toFixed(2) ?? "-"}</div>
+          <div>Low: {md?.low.toFixed(2) ?? "-"}</div>
           <div>Close: {md?.close.toFixed(2) ?? "-"}</div>
+          <div>Price Change: {priceChangePct}%</div>
           {showVolume && (
             <div>Volume: {md?.volume.toLocaleString() ?? "-"}</div>
           )}
@@ -133,13 +202,13 @@ export default function CalendarCell({
             <>
               <div>Volatility: {volStd.toFixed(4)}</div>
               <div>MA: {ma?.toFixed(2) ?? "-"}</div>
+              <div>Close vs MA: {maDiff}%</div>
             </>
           )}
           {showPerformance && <div>Performance: {perf}</div>}
-        </div>
+        </motion.div>
       )}
 
-     
       {isInCurrentMonth && (
         <div className={styles.metricsColumn}>
           {showVolatility && (
@@ -158,8 +227,6 @@ export default function CalendarCell({
           )}
         </div>
       )}
-
-      {/* Intraday popup is rendered outside this component */}
-    </div>
+    </motion.div>
   );
 }

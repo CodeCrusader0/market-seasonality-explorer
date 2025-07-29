@@ -1,10 +1,11 @@
 import React from "react";
 import moment from "moment";
-
 import CalendarCell from "./CalendarCell";
 import WeeklySummary from "./WeeklySummary";
-import type { MarketData, ViewType } from "./Calendar";
+import MonthlySummary from "./MonthlySummary";
+import type { ViewType } from "./Calendar";
 import styles from "./Calendar.module.scss";
+import type { MarketData } from "../../data/types";
 
 interface CalendarGridProps {
   view: ViewType;
@@ -26,15 +27,14 @@ interface CalendarGridProps {
     e: React.KeyboardEvent<HTMLDivElement>,
     d: moment.Moment
   ) => void;
-
   showVolatility: boolean;
   showVolume: boolean;
   showPerformance: boolean;
-  showIntraday: boolean; 
+  showIntraday: boolean;
   onIntradayHover: (date: string, rect: DOMRect) => void;
-  onIntradayLeave: () => void; 
-
+  onIntradayLeave: () => void;
   symbol: string;
+  alerts: { volatility?: number; performance?: number; date: string }[];
 }
 
 export default function CalendarGrid({
@@ -54,17 +54,15 @@ export default function CalendarGrid({
   onSelectDate,
   onHover,
   onCellKeyDown,
-
   showVolatility,
   showVolume,
   showPerformance,
   showIntraday,
-  onIntradayHover, 
-  onIntradayLeave, 
-
-  symbol, 
+  onIntradayHover,
+  onIntradayLeave,
+  symbol,
+  alerts,
 }: CalendarGridProps) {
-
   if (view === "Daily") {
     const weekdayIndex = currentMonth.day();
     return (
@@ -96,6 +94,7 @@ export default function CalendarGrid({
                 onCellKeyDown={onCellKeyDown}
                 onIntradayHover={onIntradayHover}
                 onIntradayLeave={onIntradayLeave}
+                alerts={alerts}
               />
             ) : (
               <div key={idx} className={styles.emptyCell} />
@@ -137,6 +136,7 @@ export default function CalendarGrid({
                 onCellKeyDown={onCellKeyDown}
                 onIntradayHover={onIntradayHover}
                 onIntradayLeave={onIntradayLeave}
+                alerts={alerts}
               />
             );
           })}
@@ -156,8 +156,35 @@ export default function CalendarGrid({
     );
   }
 
+  const validDays = Object.keys(calendarData).filter(
+    (d) => moment(d).month() === currentMonth.month()
+  );
+  const avgVol =
+    validDays.reduce((sum, d) => sum + (volatilityMap[d] || 0), 0) /
+    (validDays.length || 1);
+  const totVol = validDays.reduce((sum, d) => sum + calendarData[d].volume, 0);
+  const avgClose =
+    validDays.reduce((sum, d) => sum + calendarData[d].close, 0) /
+    (validDays.length || 1);
+  const firstDay = validDays[0] ? calendarData[validDays[0]] : null;
+  const lastDay = validDays[validDays.length - 1]
+    ? calendarData[validDays[validDays.length - 1]]
+    : null;
+  const performance =
+    firstDay && lastDay
+      ? ((lastDay.close - firstDay.open) / firstDay.open) * 100
+      : 0;
+  const monthlySummary = {
+    month: currentMonth.format("MMMM YYYY"),
+    avgVolatility: avgVol,
+    totalVolume: totVol,
+    avgClose,
+    performance,
+  };
+
   return (
     <>
+      <MonthlySummary summary={monthlySummary} />
       {weeks.map((week, idx) => {
         const validDays = week.filter(
           (d) => calendarData[d.format("YYYY-MM-DD")]
@@ -211,6 +238,7 @@ export default function CalendarGrid({
                   onCellKeyDown={onCellKeyDown}
                   onIntradayHover={onIntradayHover}
                   onIntradayLeave={onIntradayLeave}
+                  alerts={alerts}
                 />
               ))}
             </div>

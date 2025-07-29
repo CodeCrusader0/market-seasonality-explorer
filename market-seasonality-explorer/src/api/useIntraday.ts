@@ -7,7 +7,7 @@ export function useIntraday(symbol: string, date: string, p0: { enabled: boolean
         queryKey: ['intraday', symbol, date],
         queryFn: () => fetchIntraday(symbol, date),
         enabled: !!symbol && !!date,
-        staleTime: 5 * 60 * 1000,         // cache for 5m
+        staleTime: 5 * 60 * 1000,         
         refetchOnWindowFocus: false,
     });
 }
